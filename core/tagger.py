@@ -1,0 +1,94 @@
+"""
+이미지 분석 및 태깅 담당 뮤듈
+로드된 YOLO 모델을 사용하여 이미지에서 객체를 감지하고 태그 생성
+"""
+import json
+
+import cv2
+import numpy as np
+
+
+class ImageTagger:
+    """ 이미지 분석 및 태깅 수행하는 클래스 """
+    def __init__(self, model_loader, tag_mapping, color_ranges):
+        # 모델 로더로부터 모델 가져오기
+        self.model = model_loader.load_model()  # YOLO 모델 로드 추가
+
+        # 태그 사전을 외부에서 주입받음 (Config에서 로드된 데이터)
+        self.tag_mapping = tag_mapping  # JSON 파일 읽기 대신 직접 전달받음
+
+        # 색상 사전을 외부에서 주입받음 (Config에서 로드된 데이터)
+        self.color_ranges = color_ranges  # JSON 파일 읽기 대신 직접 전달받음
+
+    def analyze_color(self, img, box):
+        """ 바운딩 박스 내 주요 색상 분석 """
+        # 바운딩 박스 좌표 추출 (x1, y1, x2, y2) - YOLO xyxy 순서에 맞게 수정
+        x1, y1, x2, y2 = map(int, box.xyxy[0])  # [x_min, y_min, x_max, y_max]
+
+        # 좌표 유효성 검사 및 조정
+        h, w = img.shape[:2]  # 이미지 높이와 너비
+        x1 = max(0, x1)  # 음수 방지
+        y1 = max(0, y1)
+        x2 = min(w, x2)  # 이미지 크기 초과 방지
+        y2 = min(h, y2)
+
+        # 슬라이싱 전에 크기 확인
+        if x1 >= x2 or y1 >= y2:
+            print(f"Invalid bounding box: ({x1}, {y1}, {x2}, {y2}) - skipping color analysis")
+            return []
+
+        roi = img[y1:y2, x1:x2]  # 바운딩 박스 영역 추출
+        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)  # BGR to HSV 변환
+
+        colors = []  # 감지된 색상 저장
+        for color_name, range_data in self.color_ranges.items():
+            lower = np.array(range_data["lower"])  # 하한값
+            upper = np.array(range_data["upper"])  # 상한값
+            mask = cv2.inRange(hsv, lower, upper)  # 범위 내 픽셀 마스크
+            if cv2.countNonZero(mask) > (roi.size * 0.1):  # 10% 이상이면 색상 추가
+                colors.append(color_name)
+        return colors
+
+    def analyze_image(self, image_path):
+        """이미지 분석 후 태그 반환"""
+        # OpenCV로 이미지 로드
+        img = cv2.imread(str(image_path))
+        if img is None:
+            print(f"Error: Could not load image {image_path}")
+            return []
+
+        # YOLO 모델로 객체 감지 수행
+        results = self.model(img, conf=0.25, verbose=False)   # verbose: 상세 출력 여부
+        detections = results[0].boxes   # 감지 결과에서 바운딩 박스 정보 추출
+
+        # 감지 결과 로깅
+        if len(detections) == 0:
+            print(f"No objects detected in {image_path} (confidence threshold: 0.25)")
+        else:
+            print(f"Detected objects in {image_path}:")
+            for detection in detections:
+                label = self.model.names[int(detection.cls)]  # 클래스 이름
+                confidence = float(detection.conf)  # 신뢰도
+                print(f" - {label}: {confidence:.2f}")
+
+        # 태그 생성 (중복 제거를 위해 set 사용)
+        tags = set()
+        for detection in detections:
+            label = self.model.names[int(detection.cls)]
+            confidence = float(detection.conf)
+
+            # 신뢰도 25% 이상이고 태그 매핑에 있는 경우만 처리
+            if label in self.tag_mapping and confidence >= 0.25:
+                mapping = self.tag_mapping[label]
+                tags.add(mapping["category"])  # 대분류 추가
+                tags.add(mapping["subcategory"])  # 소분류 추가
+
+                # 색상 분석 후 태그 추가
+                colors = self.analyze_color(img, detection)
+                tags.update(colors)
+
+                # 추가 속성 (예: 가방이면 지퍼 추가)
+                if mapping["subcategory"] == "bag":
+                    tags.add("zipper")  # 임시 규칙
+
+        return list(tags)  # set을 list로 변환해 반환
