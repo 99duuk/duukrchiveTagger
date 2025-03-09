@@ -1,0 +1,76 @@
+@startuml 학습 중심의 두크카이브 아키텍처
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+
+component "Python\n(duukrchiveTagger)" as Python #FFFFCC {
+  [디렉토리 감시 서비스] as WatchService
+  [이미지 분석 서비스] as ImageAnalyzer
+  [태그 생성기] as TagGenerator
+  [파일 관리 서비스] as PythonFileService
+  [Kafka Producer] as KafkaProducerPython
+}
+
+component "Spring Boot\n(duukrchive-api)" as SpringBoot #C8E6C9 {
+  [REST API] as RestAPI
+  [태그 관리 서비스] as TagService
+  [검색 서비스] as SearchService
+  [통계 서비스] as StatsService
+  [Kafka Consumer] as KafkaConsumerSpring
+  [ES Repository] as ESRepo
+}
+
+component "Kafka" as Kafka #ADD8E6 {
+  queue "image-tags 토픽" as ImageTagsTopic
+}
+
+component "Elasticsearch" as ElasticSearch #FFCCCC
+
+component "Vue (Electron/Tauri)" as VueApp #E6E6FA {
+  [사용자 인터페이스] as UI
+  [검색 기능] as Search
+  [파일 탐색기] as FileExplorer
+  [태그 관리 UI] as TagUI
+  [통계 대시보드] as StatsDashboard
+}
+
+component "로컬 스토리지" as Storage #F5F5DC {
+  folder "~/Desktop/archive" as InputDir
+  folder "~/Desktop/archive/jeans" as JeansDir
+  folder "~/Desktop/archive/boots" as BootsDir
+  folder "~/Desktop/archive/..." as OtherDirs
+}
+
+' 관계 정의
+WatchService --> InputDir : 1. 모니터링
+InputDir --> ImageAnalyzer : 2. 파일 추가 감지
+ImageAnalyzer --> TagGenerator : 3. 이미지 분석
+TagGenerator --> PythonFileService : 4. 태그 기반 파일 처리
+
+PythonFileService --> JeansDir : 5a. 파일 이동
+PythonFileService --> BootsDir : 5a. 파일 이동
+PythonFileService --> OtherDirs : 5a. 파일 이동
+
+TagGenerator --> KafkaProducerPython : 5b. 태그 정보 전달
+KafkaProducerPython --> ImageTagsTopic : 6. 태그 결과 발행
+ImageTagsTopic --> KafkaConsumerSpring : 7. 태그 데이터 소비
+
+KafkaConsumerSpring --> TagService : 8. 태그 메타데이터 처리
+TagService --> ESRepo : 9. 문서 저장
+ESRepo --> ElasticSearch : 10. ES 작업 수행
+
+SearchService --> ESRepo : 11a. 검색 쿼리 요청
+StatsService --> ESRepo : 11b. 통계 데이터 요청
+
+VueApp --> RestAPI : 12. API 호출
+RestAPI --> SearchService : 13a. 검색 요청 처리
+RestAPI --> TagService : 13b. 태그 관리 요청 처리
+RestAPI --> StatsService : 13c. 통계 요청 처리
+
+FileExplorer --> Storage : 14. 파일 접근
+
+note bottom of Python : "파일 시스템 작업 및 이미지 분석 담당"
+note bottom of SpringBoot : "백엔드 API 및 비즈니스 로직 담당(학습 중점)"
+note right of ElasticSearch : "태그와 파일 경로 저장/검색"
+
+@enduml
