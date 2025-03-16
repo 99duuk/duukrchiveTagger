@@ -1,0 +1,53 @@
+@startuml 최신 두크카이브 아키텍처
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+
+component "Python\n(duukrchiveTagger)" as Python #FFFFCC {
+  [디렉토리 감시 서비스] as WatchService
+  [이미지 분석 서비스] as ImageAnalyzer
+  [태그 생성기] as TagGenerator
+  [파일 관리 서비스] as PythonFileService
+  [Kafka Producer] as KafkaProducerPython
+}
+
+component "Kafka" as Kafka #ADD8E6 {
+  queue "image_tags 토픽" as ImageTagsTopic
+}
+
+component "Kafka Connect" as KafkaConnect #87CEEB {
+  [Elasticsearch Sink Connector] as ESSinkConnector
+}
+
+component "Elasticsearch" as ElasticSearch #FFCCCC
+
+component "로컬 스토리지" as Storage #F5F5DC {
+  folder "~/Desktop/duukrchive" as InputDir
+  folder "~/Desktop/duukrchive/vehicle" as VehicleDir
+  folder "~/Desktop/duukrchive/human" as HumanDir
+  folder "~/Desktop/duukrchive/..." as OtherDirs
+}
+
+' 관계 정의
+WatchService --> InputDir : 1. 모니터링
+InputDir --> ImageAnalyzer : 2. 파일 추가 감지
+ImageAnalyzer --> TagGenerator : 3. 이미지 분석
+TagGenerator --> PythonFileService : 4. 태그 기반 파일 처리
+
+PythonFileService --> VehicleDir : 5a. 파일 이동
+PythonFileService --> HumanDir : 5a. 파일 이동
+PythonFileService --> OtherDirs : 5a. 파일 이동
+
+TagGenerator --> KafkaProducerPython : 5b. 태그 정보 전달
+KafkaProducerPython --> ImageTagsTopic : 6. 태그 결과 발행
+
+ImageTagsTopic --> ESSinkConnector : 7. 태그 데이터 소비
+ESSinkConnector --> ElasticSearch : 8. ES에 데이터 저장
+
+note bottom of Python : "파일 시스템 작업, 이미지 분석, Kafka 발행 담당"
+note bottom of Kafka : "태그 데이터 비동기 전달"
+note bottom of KafkaConnect : "Kafka에서 ES로 데이터 싱크"
+note right of ElasticSearch : "태그와 파일 경로 저장/검색"
+note right of Storage : "대분류 폴더로 파일 정리"
+
+@enduml
