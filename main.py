@@ -9,7 +9,6 @@ from models.model_loader import ModelLoader
 from core.tagger import ImageTagger
 from core.file_manager import FileManager
 from config import Config
-from utils.log_util import ProgressLogger
 
 # 전역 변수 선언
 tagger = None
@@ -23,28 +22,28 @@ def process_image(image_path):
 
     image_path (str): 처리할 이미지 파일 경로
     """
-    ProgressLogger.log_step(f"Processing: {image_path}")
+    print(f"Processing: {image_path}")
     try:
         # 1. 이미지 분석
         primary_tag, tags = tagger.analyze_image(image_path)
 
         # 태그가 없으면 처리 중단
         if not primary_tag:
-            ProgressLogger.log_step(f"No recognized objects in {image_path}, skipping...")
+            print(f"No recognized objects in {image_path}, skipping...")
             return
 
-        ProgressLogger.log_step(f"Image {image_path} classified - Primary tag: {primary_tag}, Tags: {tags}")
+        print(f"Image {image_path} classified - Primary tag: {primary_tag}, Tags: {tags}")
 
 
         # 2. 파일 이동
         new_path = file_manager.move_file(image_path, primary_tag)
-        ProgressLogger.log_step(f"Moved to: {new_path}")
+        print(f"Moved to: {new_path}")
 
         # 3. Kafka로 태그 정보 전송
         kafka_producer.send_tag_data(new_path, tags, primary_tag)
 
     except Exception as e:
-        ProgressLogger.log_error(f"이미지 처리 오류: {e}")
+        print(f"이미지 처리 오류: {e}")
 
 
 
@@ -67,9 +66,9 @@ def main():
         watcher = DirectoryWatcher(config.input_dir)
         # process_image 함수를 이벤트 콜백으로 등록
         watcher.start(process_image)
-        ProgressLogger.log_step("디렉터리 감시 시작")
+        print("디렉터리 감시 시작")
     except Exception as e:
-        ProgressLogger.log_error(f"초기화 오류: {e}")
+        print(f"초기화 오류: {e}")
         return
 
     try:
@@ -78,10 +77,10 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         # Ctrl+C로 프로그램 종료 시 디렉터리 감시도 중지
-        ProgressLogger.log_step("프로그램 종료 중...")
+        print("프로그램 종료 중...")
         watcher.stop()
         kafka_producer.close()  # kafka Producer 종료
-        ProgressLogger.log_step("디렉터리 감시 중지됨.")
+        print("디렉터리 감시 중지됨.")
 
 
 if __name__ == "__main__":

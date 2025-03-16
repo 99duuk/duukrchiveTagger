@@ -6,9 +6,6 @@ Kafka로 메시지 발행 기능 담당 모듈
 from kafka import KafkaProducer # Kafka 프로튜서 클래스
 import json
 
-from utils.log_util import ProgressLogger
-
-
 class TagProducer:
     """
     Kafka로 태그 데이터 발행하는 클래스
@@ -26,7 +23,6 @@ class TagProducer:
             value_serializer=lambda x: json.dumps(x).encode('utf-8') # Python 객체 -> JSON -> UTF-8
         )
         self.topic_name = topic_name
-        ProgressLogger.log_step("Kafka Producer 초기화됨")
 
 
     def _get_timestamp(self):
@@ -52,12 +48,12 @@ class TagProducer:
             # Kafka 토픽으로 메시지 발행
             self.producer.send(self.topic_name, value=message)
             self.producer.flush()   # 즉시 전송 보장 (비동기 처리 시 제거 가능)
-            ProgressLogger.log_step(f"Sent to Kafka topic: '{self.topic_name}' : {message}")
+            print(f"Sent to Kafka topic: '{self.topic_name}' : {message}")
         except Exception as e:
-            ProgressLogger.log_error(f"Error sending to Kafka: {e}")
+            print(f"Error sending to Kafka: {e}")
 
 
     def close(self):
         """ Kafka Producer 종료 """
         self.producer.close()
-        ProgressLogger.log_step("Kafka Producer closed")
+        print("Kafka Producer closed")
