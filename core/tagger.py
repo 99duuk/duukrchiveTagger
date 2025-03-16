@@ -2,10 +2,9 @@
 이미지 분석 및 태깅 담당 뮤듈
 로드된 YOLO 모델을 사용하여 이미지에서 객체를 감지하고 태그 생성
 """
-import json
-
 import cv2
 import numpy as np
+from torch.utils.hipify.hipify_python import mapping
 
 
 class ImageTagger:
@@ -15,10 +14,10 @@ class ImageTagger:
         self.model = model_loader.load_model()  # YOLO 모델 로드 추가
 
         # 태그 사전을 외부에서 주입받음 (Config에서 로드된 데이터)
-        self.tag_mapping = tag_mapping  # JSON 파일 읽기 대신 직접 전달받음
+        self.tag_mapping = tag_mapping  # 태그 매핑
 
         # 색상 사전을 외부에서 주입받음 (Config에서 로드된 데이터)
-        self.color_ranges = color_ranges  # JSON 파일 읽기 대신 직접 전달받음
+        self.color_ranges = color_ranges  # 색상 범위
 
     def analyze_color(self, img, box):
         """ 바운딩 박스 내 주요 색상 분석 """
@@ -50,7 +49,7 @@ class ImageTagger:
         return colors
 
     def analyze_image(self, image_path):
-        """이미지 분석 후 태그 반환"""
+        """이미지 분석 후 대분류 태그와 나머지 태그 반환"""
         # OpenCV로 이미지 로드
         img = cv2.imread(str(image_path))
         if img is None:
@@ -63,32 +62,41 @@ class ImageTagger:
 
         # 감지 결과 로깅
         if len(detections) == 0:
+            print(f"=================================================================")
             print(f"No objects detected in {image_path} (confidence threshold: 0.25)")
-        else:
-            print(f"Detected objects in {image_path}:")
-            for detection in detections:
-                label = self.model.names[int(detection.cls)]  # 클래스 이름
-                confidence = float(detection.conf)  # 신뢰도
-                print(f" - {label}: {confidence:.2f}")
+            return None, []
 
-        # 태그 생성 (중복 제거를 위해 set 사용)
-        tags = set()
+        # confidence 순으로 객체 정렬
+        detected_objects = []
         for detection in detections:
-            label = self.model.names[int(detection.cls)]
-            confidence = float(detection.conf)
-
-            # 신뢰도 25% 이상이고 태그 매핑에 있는 경우만 처리
+            label = self.model.names[int(detection.cls)]  # 클래스 이름
+            confidence = float(detection.conf)  # 신뢰도
             if label in self.tag_mapping and confidence >= 0.25:
-                mapping = self.tag_mapping[label]
-                tags.add(mapping["category"])  # 대분류 추가
-                tags.add(mapping["subcategory"])  # 소분류 추가
+                detected_objects.append((label, confidence, detection))
 
-                # 색상 분석 후 태그 추가
-                colors = self.analyze_color(img, detection)
-                tags.update(colors)
+        # confidence 기준 내림차순 정렬
+        detected_objects.sort(key=lambda x: x[1], reverse=True)
 
-                # 추가 속성 (예: 가방이면 지퍼 추가)
-                if mapping["subcategory"] == "bag":
-                    tags.add("zipper")  # 임시 규칙
+        # 대분류: 가장 높은 confidence를 가진 객체
+        primary_tag = None
+        if detected_objects:
+            primary_label = detected_objects[0][0]
+            primary_tag = self.tag_mapping[primary_label]["category"]
+            print(f"Primary tag (highest confidence): {primary_tag}")
 
-        return list(tags)  # set을 list로 변환해 반환
+        # 나머지 태그 생성
+        tags = set()
+        for label, confidence, section in detected_objects:
+            mapping = self.tag_mapping[label]
+            tags.add(mapping["category"]) # 대분류 추가
+            tags.add(mapping["subcategory"]) # 소분류 추가
+
+            # 색상 분석
+            colors = self.analyze_color(img, detection)
+            tags.update(colors)
+
+        # 대분류는 태그 목록에서 제외 (중복 방지)
+        if primary_tag in tags:
+            tags.remove(primary_tag)
+
+        return primary_tag, list(tags) # 대분류와 나머지 태그 반환

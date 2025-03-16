@@ -1,5 +1,5 @@
 {
-    "person": {"category": "human", "subcategory": "pedestrian"},
+    "person": {"category": "human", "subcategory": "person"},
     "bicycle": {"category": "vehicle", "subcategory": "bicycle"},
     "car": {"category": "vehicle", "subcategory": "car"},
     "motorcycle": {"category": "vehicle", "subcategory": "motorcycle"},
@@ -14,12 +14,12 @@
     "horse": {"category": "animal", "subcategory": "horse"},
     "sheep": {"category": "animal", "subcategory": "sheep"},
     "cow": {"category": "animal", "subcategory": "cow"},
-    "suitcase": {"category": "clothing", "subcategory": "bag"},
-    "backpack": {"category": "clothing", "subcategory": "bag"},
-    "handbag": {"category": "clothing", "subcategory": "bag"},
-    "shoes": {"category": "clothing", "subcategory": "shoes"},
+    "suitcase": {"category": "bag", "subcategory": "luggage"},
+    "backpack": {"category": "bag", "subcategory": "backpack"},
+    "handbag": {"category": "bag", "subcategory": "handbag"},
+    "shoes": {"category": "footwear", "subcategory": "shoes"},
     "tie": {"category": "clothing", "subcategory": "tie"},
-    "umbrella": {"category": "clothing", "subcategory": "umbrella"},
+    "umbrella": {"category": "accessory", "subcategory": "umbrella"},
     "chair": {"category": "furniture", "subcategory": "chair"},
     "sofa": {"category": "furniture", "subcategory": "sofa"},
     "bed": {"category": "furniture", "subcategory": "bed"},
@@ -31,5 +31,10 @@
     "scissors": {"category": "tool", "subcategory": "scissors"},
     "knife": {"category": "tool", "subcategory": "knife"},
     "spoon": {"category": "tool", "subcategory": "spoon"},
-    "fork": {"category": "tool", "subcategory": "fork"}
+    "fork": {"category": "tool", "subcategory": "fork"},
+    "jeans": {"category": "clothing", "subcategory": "jeans"},
+    "t-shirt": {"category": "clothing", "subcategory": "shirt"},
+    "jacket": {"category": "clothing", "subcategory": "jacket"},
+    "boots": {"category": "footwear", "subcategory": "boots"},
+    "sneakers": {"category": "footwear", "subcategory": "sneakers"}
 }

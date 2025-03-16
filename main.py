@@ -25,22 +25,21 @@ def process_image(image_path):
     print(f"Processing: {image_path}")
     try:
         # 1. 이미지 분석
-        tags = tagger.analyze_image(image_path)
+        primary_tag, tags = tagger.analyze_image(image_path)
 
         # 태그가 없으면 처리 중단
-        if not tags:
+        if not primary_tag:
             print(f"No recognized objects in {image_path}, skipping...")
             return
 
-        # 2. 첫 번째 태그를 대분류로 사용
-        primary_tag = tags[0]
-        print(f"Image {image_path} classified as :{tags}, primary tag: {primary_tag}")
+        print(f"Image {image_path} classified - Primary tag: {primary_tag}, Tags: {tags}")
 
-        # 3. 파일 이동
+
+        # 2. 파일 이동
         new_path = file_manager.move_file(image_path, primary_tag)
         print(f"Moved to: {new_path}")
 
-        # 4. Kafka로 태그 정보 전송
+        # 3. Kafka로 태그 정보 전송
         # kafka_producer.send_tag_data(new_path, tags, primary_tag)
 
     except Exception as e:
