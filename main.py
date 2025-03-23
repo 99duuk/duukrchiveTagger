@@ -9,6 +9,7 @@ from models.model_loader import ModelLoader
 from core.tagger import ImageTagger
 from core.file_manager import FileManager
 from config import Config
+from utils.hash_util import HashUtil
 
 # 전역 변수 선언
 tagger = None
@@ -57,8 +58,11 @@ def main():
     config = Config()
     try:
         model_loader = ModelLoader(config.model_path)                                           # 모델 로더 초기화
+        hash_util = HashUtil(config.es_url)                                                     # 해시 유틸 초기화
+        hash_util.load_hashes_from_es()
+
         global  tagger, file_manager, kafka_producer                                            # 전역 변수로 선언한 컴포넌트들 초기화
-        tagger = ImageTagger(model_loader, config.tag_mapping, config.color_ranges)             # 태거 초기화 (모델 로더 및 태그 매핑 전달)
+        tagger = ImageTagger(model_loader, config.tag_mapping, config.color_ranges, hash_util)  # 태거 초기화 (모델 로더 및 태그 매핑 전달)
         file_manager = FileManager(config.output_dir)                                           # 파일 관리자 초기화 (출력 디렉터리 전달)
         kafka_producer = TagProducer(config.kafka_bootstrap_servers, config.kafka_topic_name)   # Kafka 프로듀서 초기화 (서버 주소 및 토픽 이름 전달)
 

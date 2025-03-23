@@ -33,6 +33,9 @@ class Config:
         self.tag_mapping_file = "tags.json"
         self.colors_file = "colors.json"
 
+        # ES URL
+        self.es_url = "http://localhost:9200"
+
         # 태그 매핑 로드
         try:
             with open(self.tag_mapping_file, 'r') as f:

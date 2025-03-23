@@ -4,12 +4,13 @@
 """
 import cv2
 import numpy as np
-from torch.utils.hipify.hipify_python import mapping
+
+from utils.hash_util import HashUtil
 
 
 class ImageTagger:
     """ 이미지 분석 및 태깅 수행하는 클래스 """
-    def __init__(self, model_loader, tag_mapping, color_ranges):
+    def __init__(self, model_loader, tag_mapping, color_ranges, hash_util: HashUtil):
         # 모델 로더로부터 모델 가져오기
         self.model = model_loader.load_model()  # YOLO 모델 로드 추가
 
@@ -18,6 +19,10 @@ class ImageTagger:
 
         # 색상 사전을 외부에서 주입받음 (Config에서 로드된 데이터)
         self.color_ranges = color_ranges  # 색상 범위
+
+        # 중복 체크용 해시 저장
+        self.hash_util: HashUtil = hash_util
+
 
     def analyze_color(self, img, box):
         """ 바운딩 박스 내 주요 색상 분석 """
@@ -50,11 +55,18 @@ class ImageTagger:
 
     def analyze_image(self, image_path):
         """이미지 분석 후 대분류 태그와 나머지 태그 반환"""
+        # 이미지 해시 확인
+        hu = self.hash_util
+        if hu.is_duplicate(image_path):
+            img_hash = hu.get_image_hash(image_path)
+            print(f"Duplicate image detected: {img_hash}, skipping...")
+            return None, []
+
         # OpenCV로 이미지 로드
         img = cv2.imread(str(image_path))
         if img is None:
             print(f"Error: Could not load image {image_path}")
-            return []
+            return None, []
 
         # YOLO 모델로 객체 감지 수행
         results = self.model(img, conf=0.25, verbose=False)   # verbose: 상세 출력 여부
@@ -98,5 +110,9 @@ class ImageTagger:
         # 대분류는 태그 목록에서 제외 (중복 방지)
         if primary_tag in tags:
             tags.remove(primary_tag)
+
+        # 태그 생성 후 해시 저장
+        if primary_tag:
+            hu.save_hash_to_es(hu.get_image_hash(image_path))
 
         return primary_tag, list(tags) # 대분류와 나머지 태그 반환
