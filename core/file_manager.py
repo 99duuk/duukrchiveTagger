@@ -3,10 +3,8 @@
 태그에 따른 디렉터리 생성 및 파일 이동
 """
 import shutil # 파일 이동 기능
-import os # 운영체제 기능
 from pathlib import Path # 경로 처리용 라이브러리
 
-from numpy.distutils.lib2def import output_def
 
 
 class FileManager:
